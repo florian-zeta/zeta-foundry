@@ -6,6 +6,7 @@ app = FastAPI(
     title="Zeta Sandbox Foundry",
     description="Asset generation foundry for ZMP sandbox population",
     version="1.0.0",
+    servers=[{"url": "https://web-production-9ea5b.up.railway.app"}],
 )
 
 app.add_middleware(
