@@ -120,7 +120,7 @@ async def _post_single(
 ) -> tuple[bool, Optional[str]]:
     payload = _profile_to_subscriber(profile)
     try:
-        response = await client.post(url, json=payload, auth=auth, timeout=15.0)
+        response = await client.post(url, json=payload, auth=auth, timeout=15.0, headers={"Accept": "application/json"})
         if response.status_code in (200, 201):
             return True, None
         else:
