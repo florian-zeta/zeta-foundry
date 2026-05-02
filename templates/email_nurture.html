@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ subject_line }}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f9f9f9;font-family:{{ brand.font_family }};">
+
+<span style="display:none;max-height:0;overflow:hidden;">{{ preview_text }}</span>
+
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9f9f9;padding:24px 0;">
+  <tr>
+    <td align="center">
+      <table width="580" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;border:1px solid #e8e8e8;max-width:580px;width:100%;">
+
+        <!-- Top rule in accent color -->
+        <tr>
+          <td style="background-color:{{ brand.accent_color }};height:3px;border-radius:8px 8px 0 0;font-size:0;">&nbsp;</td>
+        </tr>
+
+        <!-- Logo row -->
+        <tr>
+          <td style="padding:28px 36px 8px;">
+            {% if brand.logo_url %}
+              <img src="{{ brand.logo_url }}" alt="{{ brand.logo_text }}" height="28" style="display:block;">
+            {% else %}
+              <span style="color:{{ brand.primary_color }};font-size:16px;font-weight:700;">{{ brand.logo_text }}</span>
+            {% endif %}
+          </td>
+        </tr>
+
+        <!-- Headline -->
+        <tr>
+          <td style="padding:20px 36px 8px;">
+            <h2 style="margin:0;color:{{ brand.primary_color }};font-size:22px;line-height:1.35;font-weight:700;">
+              {{ headline }}
+            </h2>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:12px 36px 28px;">
+            <p style="margin:0 0 20px;color:#444444;font-size:15px;line-height:1.75;">
+              {{ body_copy }}
+            </p>
+            <a href="{{ cta_url }}"
+               style="color:{{ brand.accent_color }};font-size:15px;font-weight:600;text-decoration:underline;">
+              {{ cta_text }} &rarr;
+            </a>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:20px 36px 28px;border-top:1px solid #eeeeee;">
+            <p style="margin:0;color:#aaaaaa;font-size:11px;line-height:1.6;text-align:center;">
+              &copy; {{ brand.logo_text }} &nbsp;&middot;&nbsp;
+              <a href="#" style="color:#aaaaaa;">Unsubscribe</a>
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
