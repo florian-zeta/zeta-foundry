@@ -43,22 +43,14 @@ VERTICAL_EVENTS = {
 class BuildEventsRequest(BaseModel):
     site_id: str = Field(..., example="buffalo-wild-wings-crm-demo-2025")
     api_key: str = Field(..., example="your-api-key-here")
-    uids: list[str] = Field(
-        ...,
-        description="Subscriber UIDs returned from /load-audience"
-    )
+    uids: list[str] = Field(..., description="Subscriber UIDs returned from /load-audience")
     vertical: str = Field(..., example="retail")
     brand_name: str = Field(..., example="Buffalo Wild Wings")
     resource_ids: Optional[list[str]] = Field(
         None,
         description="Resource IDs from /build-resources to reference in events"
     )
-    events_per_user: int = Field(
-        3,
-        ge=1,
-        le=10,
-        description="Number of events per subscriber"
-    )
+    events_per_user: int = Field(3, ge=1, le=10)
 
 
 class BuildEventsResponse(BaseModel):
@@ -91,20 +83,18 @@ def _build_properties(
     uid: str,
     resource_ids: Optional[list[str]],
     rng: random.Random,
-    timestamp: str
 ) -> dict:
     base = {
         "source": "zeta-sandbox-foundry",
-        "event_timestamp": timestamp,
         "brand": brand_name,
     }
 
-    rid = rng.choice(resource_ids) if resource_ids else f"foundry_product_001"
+    rid = rng.choice(resource_ids) if resource_ids else "foundry_product_001"
 
     if vertical == "retail":
         if event == "place_order":
             return {**base,
-                "order_id": f"ORD-{uid[-8:]}-{rng.randint(1000,9999)}",
+                "order_id": f"ORD-{uid[-8:]}-{rng.randint(1000, 9999)}",
                 "order_total": round(rng.uniform(12, 65), 2),
                 "currency": "USD",
                 "items": [{"resource_id": rid, "quantity": rng.randint(1, 3)}],
@@ -145,7 +135,6 @@ def _build_properties(
             return {**base,
                 "appointment_id": f"APT-{rng.randint(10000, 99999)}",
                 "care_type": rng.choice(["annual_wellness", "specialist", "urgent_care"]),
-                "preferred_date": _random_past_date(rng, 0, 30),
             }
         else:
             return {**base, "resource_id": rid, "page": "services"}
@@ -177,10 +166,8 @@ def _build_activity(
         "activity": {
             "subscriber": {"uid": uid},
             "event": event,
-            "properties": {
-                **properties,
-                "event_timestamp": timestamp,
-            }
+            "timestamp": timestamp,
+            "properties": properties
         }
     }
 
@@ -230,7 +217,7 @@ async def build_events(req: BuildEventsRequest):
             ts = _random_past_date(rng, i * 5, i * 5 + 30)
             props = _build_properties(
                 event, req.vertical, req.brand_name,
-                uid, req.resource_ids, rng, ts
+                uid, req.resource_ids, rng
             )
             payloads.append(_build_activity(uid, event, props, ts))
 
