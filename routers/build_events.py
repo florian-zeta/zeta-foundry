@@ -8,49 +8,40 @@ from typing import Optional
 
 router = APIRouter(tags=["events"])
 
-VERTICAL_EVENTS = {
-    "retail": [
-        {"event": "page_view", "weight": 3},
-        {"event": "view_menu", "weight": 3},
-        {"event": "add_to_cart", "weight": 2},
-        {"event": "place_order", "weight": 1},
-        {"event": "loyalty_checkin", "weight": 2},
-    ],
-    "financial_services": [
-        {"event": "page_view", "weight": 3},
-        {"event": "product_view", "weight": 3},
-        {"event": "calculator_used", "weight": 2},
-        {"event": "application_started", "weight": 1},
-        {"event": "login", "weight": 3},
-    ],
-    "healthcare": [
-        {"event": "page_view", "weight": 3},
-        {"event": "appointment_viewed", "weight": 3},
-        {"event": "appointment_booked", "weight": 1},
-        {"event": "portal_login", "weight": 2},
-        {"event": "survey_completed", "weight": 1},
-    ],
-    "hr_software": [
-        {"event": "page_view", "weight": 3},
-        {"event": "demo_requested", "weight": 1},
-        {"event": "whitepaper_downloaded", "weight": 2},
-        {"event": "pricing_viewed", "weight": 2},
-        {"event": "webinar_attended", "weight": 1},
-    ],
-}
+
+class CatalogItem(BaseModel):
+    name: str = Field(..., example="Mango Habanero Wings")
+    image: str = Field(..., example="https://placehold.co/400x300?text=Mango+Habanero+Wings")
+    url: str = Field(..., example="https://www.buffalowildwings.com/menu")
+    price: Optional[float] = Field(None, example=14.99)
 
 
 class BuildEventsRequest(BaseModel):
     site_id: str = Field(..., example="buffalo-wild-wings-crm-demo-2025")
     api_key: str = Field(..., example="your-api-key-here")
-    uids: list[str] = Field(..., description="Subscriber UIDs returned from /load-audience")
-    vertical: str = Field(..., example="retail")
+    uids: list[str] = Field(..., description="Subscriber UIDs from /load-audience")
     brand_name: str = Field(..., example="Buffalo Wild Wings")
-    resource_ids: Optional[list[str]] = Field(
-        None,
-        description="Resource IDs from /build-resources to reference in events"
+    brand_url: str = Field(..., example="https://www.buffalowildwings.com")
+    light_event_names: list[str] = Field(
+        ...,
+        description="2-3 light behavioral event names appropriate for this brand",
+        example=["page_view", "view_menu", "loyalty_checkin"]
     )
-    events_per_user: int = Field(3, ge=1, le=10)
+    rich_event_name: str = Field(
+        ...,
+        description="Name of the single rich loopable event per user",
+        example="updated_cart"
+    )
+    rich_items_key: str = Field(
+        ...,
+        description="Key name for the items array in the rich event properties",
+        example="items"
+    )
+    catalog: list[CatalogItem] = Field(
+        ...,
+        description="Product/service catalog from brand research — used to populate rich event items"
+    )
+    events_per_user: int = Field(2, ge=1, le=5, description="Number of light events per user")
 
 
 class BuildEventsResponse(BaseModel):
@@ -59,6 +50,8 @@ class BuildEventsResponse(BaseModel):
     succeeded: int
     failed: int
     event_counts: dict
+    rich_event_name: str
+    rich_items_key: str
     errors: list[str]
 
 
@@ -68,104 +61,68 @@ def _random_past_date(rng: random.Random, days_ago_min: int, days_ago_max: int) 
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _pick_events(vertical: str, count: int, rng: random.Random) -> list[str]:
-    event_pool = VERTICAL_EVENTS.get(vertical, VERTICAL_EVENTS["retail"])
-    weighted = []
-    for e in event_pool:
-        weighted.extend([e["event"]] * e["weight"])
-    return [rng.choice(weighted) for _ in range(count)]
-
-
-def _build_properties(
+def _build_light_activity(
+    uid: str,
     event: str,
-    vertical: str,
     brand_name: str,
-    uid: str,
-    resource_ids: Optional[list[str]],
+    brand_url: str,
     rng: random.Random,
-) -> dict:
-    base = {
-        "source": "zeta-sandbox-foundry",
-        "brand": brand_name,
-    }
-
-    rid = rng.choice(resource_ids) if resource_ids else "foundry_product_001"
-
-    if vertical == "retail":
-        if event == "place_order":
-            return {**base,
-                "order_id": f"ORD-{uid[-8:]}-{rng.randint(1000, 9999)}",
-                "order_total": round(rng.uniform(12, 65), 2),
-                "currency": "USD",
-                "items": [{"resource_id": rid, "quantity": rng.randint(1, 3)}],
-                "service_method": rng.choice(["dine_in", "takeout", "delivery"]),
-            }
-        elif event == "add_to_cart":
-            return {**base,
-                "cart_id": f"CART-{uid[-8:]}",
-                "cart_value": round(rng.uniform(10, 50), 2),
-                "currency": "USD",
-                "items": [{"resource_id": rid, "quantity": 1}],
-            }
-        elif event == "loyalty_checkin":
-            return {**base,
-                "points_earned": rng.randint(10, 100),
-                "visit_type": rng.choice(["dine_in", "takeout"]),
-            }
-        else:
-            return {**base, "resource_id": rid, "page": "menu"}
-
-    elif vertical == "financial_services":
-        if event == "application_started":
-            return {**base,
-                "product_id": rid,
-                "application_id": f"APP-{rng.randint(100000, 999999)}",
-                "product_type": rng.choice(["checking", "savings", "credit_card"]),
-            }
-        elif event == "calculator_used":
-            return {**base,
-                "calculator_type": rng.choice(["mortgage", "savings", "loan"]),
-                "estimated_amount": round(rng.uniform(5000, 500000), 2),
-            }
-        else:
-            return {**base, "resource_id": rid, "page": "products"}
-
-    elif vertical == "healthcare":
-        if event == "appointment_booked":
-            return {**base,
-                "appointment_id": f"APT-{rng.randint(10000, 99999)}",
-                "care_type": rng.choice(["annual_wellness", "specialist", "urgent_care"]),
-            }
-        else:
-            return {**base, "resource_id": rid, "page": "services"}
-
-    elif vertical == "hr_software":
-        if event == "demo_requested":
-            return {**base,
-                "demo_id": f"DEMO-{rng.randint(1000, 9999)}",
-                "company_size": rng.choice(["50-200", "200-500", "500-2000"]),
-                "modules_interested": rng.sample(["payroll", "onboarding", "performance"], 2),
-            }
-        elif event == "whitepaper_downloaded":
-            return {**base,
-                "document": rng.choice(["ROI Guide", "Implementation Checklist", "Feature Overview"]),
-            }
-        else:
-            return {**base, "resource_id": rid, "page": "features"}
-
-    return base
-
-
-def _build_activity(
-    uid: str,
-    event: str,
-    properties: dict,
     timestamp: str
 ) -> dict:
     return {
         "activity": {
             "subscriber": {"uid": uid},
             "event": event,
+            "timestamp": timestamp,
+            "properties": {
+                "source": "zeta-sandbox-foundry",
+                "brand": brand_name,
+                "url": brand_url,
+            }
+        }
+    }
+
+
+def _build_rich_activity(
+    uid: str,
+    rich_event_name: str,
+    rich_items_key: str,
+    brand_name: str,
+    brand_url: str,
+    catalog: list[dict],
+    rng: random.Random,
+    timestamp: str
+) -> dict:
+    n_items = rng.randint(2, min(3, len(catalog)))
+    selected = rng.sample(catalog, n_items)
+
+    items = [
+        {
+            "name": item["name"],
+            "quantity": rng.randint(1, 2),
+            "price": item.get("price") or 0,
+            "image": item["image"],
+            "url": item["url"],
+        }
+        for item in selected
+    ]
+
+    cart_value = round(sum(i["price"] * i["quantity"] for i in items), 2)
+
+    properties = {
+        "source": "zeta-sandbox-foundry",
+        "brand": brand_name,
+        "brand_url": brand_url,
+        "cart_id": f"CART-{uid[-8:]}-{rng.randint(1000, 9999)}",
+        "cart_value": cart_value,
+        "currency": "USD",
+        rich_items_key: items,
+    }
+
+    return {
+        "activity": {
+            "subscriber": {"uid": uid},
+            "event": rich_event_name,
             "timestamp": timestamp,
             "properties": properties
         }
@@ -195,31 +152,42 @@ async def _post_event(
 @router.post(
     "/build-events",
     response_model=BuildEventsResponse,
-    summary="Generate and post behavioral events for loaded subscribers",
+    summary="Generate light behavioral events plus one rich loopable event per subscriber",
     description=(
-        "Creates realistic behavioral events per subscriber based on vertical. "
-        "UIDs must match subscriber UIDs returned from /load-audience. "
-        "Pass resource_ids from /build-resources to reference in event properties."
+        "Creates light behavioral events and one rich self-contained event per subscriber. "
+        "Rich event contains full item details (name, image, url, price, quantity) "
+        "for ZML template loops — no resource_id references needed. "
+        "Agent controls event names, items key, and catalog — nothing hardcoded."
     )
 )
 async def build_events(req: BuildEventsRequest):
     if not req.uids:
         raise HTTPException(status_code=400, detail="No UIDs provided")
+    if not req.catalog:
+        raise HTTPException(status_code=400, detail="No catalog provided")
 
     url = f"https://api.zetaglobal.net/ver2/{req.site_id}/activities"
     auth = ("api", req.api_key)
+    catalog = [item.dict() for item in req.catalog]
 
     payloads = []
     for uid in req.uids:
         rng = random.Random(uid)
-        events = _pick_events(req.vertical, req.events_per_user, rng)
-        for i, event in enumerate(events):
-            ts = _random_past_date(rng, i * 5, i * 5 + 30)
-            props = _build_properties(
-                event, req.vertical, req.brand_name,
-                uid, req.resource_ids, rng
-            )
-            payloads.append(_build_activity(uid, event, props, ts))
+
+        # Light events — simple behavioral signals
+        for i in range(req.events_per_user):
+            event = rng.choice(req.light_event_names)
+            ts = _random_past_date(rng, i * 7 + 14, i * 7 + 30)
+            payloads.append(_build_light_activity(
+                uid, event, req.brand_name, req.brand_url, rng, ts
+            ))
+
+        # One rich event — most recent, self-contained for ZML loops
+        rich_ts = _random_past_date(rng, 1, 7)
+        payloads.append(_build_rich_activity(
+            uid, req.rich_event_name, req.rich_items_key,
+            req.brand_name, req.brand_url, catalog, rng, rich_ts
+        ))
 
     succeeded = 0
     failed = 0
@@ -244,5 +212,7 @@ async def build_events(req: BuildEventsRequest):
         succeeded=succeeded,
         failed=failed,
         event_counts=event_counts,
+        rich_event_name=req.rich_event_name,
+        rich_items_key=req.rich_items_key,
         errors=errors[:10]
     )
