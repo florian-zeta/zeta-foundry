@@ -95,7 +95,7 @@ def _build_rich_activity(
     rng: random.Random,
     timestamp: str
 ) -> dict:
-    n_items = rng.randint(2, min(3, len(catalog)))
+    n_items = rng.randint(1, min(3, len(catalog)))
     selected = rng.sample(catalog, n_items)
 
     items = [
