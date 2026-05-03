@@ -1,12 +1,14 @@
 import httpx
 import asyncio
 import random
+import logging
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 
 router = APIRouter(tags=["events"])
+logger = logging.getLogger(__name__)
 
 
 class CatalogItem(BaseModel):
@@ -39,9 +41,9 @@ class BuildEventsRequest(BaseModel):
     )
     catalog: list[CatalogItem] = Field(
         ...,
-        description="Product/service catalog from brand research — used to populate rich event items"
+        description="Product/service catalog from brand research"
     )
-    events_per_user: int = Field(2, ge=1, le=5, description="Number of light events per user")
+    events_per_user: int = Field(2, ge=1, le=5)
 
 
 class BuildEventsResponse(BaseModel):
@@ -144,9 +146,9 @@ async def _post_event(
         if response.status_code in (200, 201, 202):
             return True, event_name, None
         else:
-            return False, event_name, f"HTTP {response.status_code} — {response.text[:100]}"
+            return False, event_name, f"HTTP {response.status_code} — {response.text[:200]}"
     except Exception as e:
-        return False, event_name, str(e)[:100]
+        return False, event_name, str(e)[:200]
 
 
 @router.post(
@@ -155,9 +157,8 @@ async def _post_event(
     summary="Generate light behavioral events plus one rich loopable event per subscriber",
     description=(
         "Creates light behavioral events and one rich self-contained event per subscriber. "
-        "Rich event contains full item details (name, image, url, price, quantity) "
-        "for ZML template loops — no resource_id references needed. "
-        "Agent controls event names, items key, and catalog — nothing hardcoded."
+        "Rich event contains full item details for ZML template loops. "
+        "No resource_id references — everything needed for HTML rendering is on the event."
     )
 )
 async def build_events(req: BuildEventsRequest):
@@ -165,6 +166,11 @@ async def build_events(req: BuildEventsRequest):
         raise HTTPException(status_code=400, detail="No UIDs provided")
     if not req.catalog:
         raise HTTPException(status_code=400, detail="No catalog provided")
+
+    logger.info(
+        f"build_events: site={req.site_id} uids={len(req.uids)} "
+        f"catalog={len(req.catalog)} rich_event={req.rich_event_name}"
+    )
 
     url = f"https://api.zetaglobal.net/ver2/{req.site_id}/activities"
     auth = ("api", req.api_key)
@@ -174,7 +180,6 @@ async def build_events(req: BuildEventsRequest):
     for uid in req.uids:
         rng = random.Random(uid)
 
-        # Light events — simple behavioral signals
         for i in range(req.events_per_user):
             event = rng.choice(req.light_event_names)
             ts = _random_past_date(rng, i * 7 + 14, i * 7 + 30)
@@ -182,21 +187,18 @@ async def build_events(req: BuildEventsRequest):
                 uid, event, req.brand_name, req.brand_url, rng, ts
             ))
 
-        # One rich event — most recent, self-contained for ZML loops
         rich_ts = _random_past_date(rng, 1, 7)
         payloads.append(_build_rich_activity(
             uid, req.rich_event_name, req.rich_items_key,
             req.brand_name, req.brand_url, catalog, rng, rich_ts
         ))
 
+    logger.info(f"build_events: {len(payloads)} total payloads to send")
+
     succeeded = 0
     failed = 0
     errors = []
     event_counts: dict = {}
-
-import logging
-logger = logging.getLogger(__name__)
-logger.info(f"build_events called: {len(req.uids)} uids, {len(req.catalog)} catalog items, rich_event={req.rich_event_name}")
 
     async with httpx.AsyncClient() as client:
         tasks = [_post_event(client, url, auth, p) for p in payloads]
@@ -209,6 +211,8 @@ logger.info(f"build_events called: {len(req.uids)} uids, {len(req.catalog)} cata
                 failed += 1
                 if error:
                     errors.append(error)
+
+    logger.info(f"build_events: succeeded={succeeded} failed={failed}")
 
     return BuildEventsResponse(
         site_id=req.site_id,
