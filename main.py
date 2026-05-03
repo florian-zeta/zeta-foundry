@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import profiles, segments, html_builder, status, images, campaign, load_audience, resource_schema
+from routers import profiles, segments, html_builder, status, images, campaign, load_audience, resource_schema, build_resources
 
 app = FastAPI(
     title="Zeta Sandbox Foundry",
@@ -24,3 +24,4 @@ app.include_router(images.router)
 app.include_router(campaign.router)
 app.include_router(load_audience.router)
 app.include_router(resource_schema.router)
+app.include_router(build_resources.router)
