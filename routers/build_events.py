@@ -197,7 +197,7 @@ async def _post_event(
             url, json=payload, auth=auth, timeout=15.0,
             headers={"Accept": "application/json"}
         )
-        if response.status_code in (200, 201):
+        if response.status_code in (200, 201, 202):
             return True, event_name, None
         else:
             return False, event_name, f"HTTP {response.status_code} — {response.text[:100]}"
