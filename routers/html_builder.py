@@ -60,7 +60,7 @@ def build_html(req: BuildHTMLRequest):
         template = jinja_env.get_template("email_hero.html")
 
     rendered = template.render(
-        brand=req.brand.dict(),
+        brand=req.brand.model_dump(),
         subject_line=req.subject_line,
         preview_text=req.preview_text,
         headline=req.headline,

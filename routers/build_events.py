@@ -174,7 +174,7 @@ async def build_events(req: BuildEventsRequest):
 
     url = f"https://api.zetaglobal.net/ver2/{req.site_id}/activities"
     auth = ("api", req.api_key)
-    catalog = [item.dict() for item in req.catalog]
+    catalog = [item.model_dump() for item in req.catalog]
 
     payloads = []
     for uid in req.uids:

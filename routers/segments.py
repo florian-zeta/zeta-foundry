@@ -67,7 +67,7 @@ def build_segments(req: BuildSegmentsRequest):
     return {
         "vertical": req.vertical,
         "campaign_theme": req.campaign_theme,
-        "segments": [s.dict() for s in built],
+        "segments": [s.model_dump() for s in built],
         "count": len(built),
         "note": "Import each zmp_payload via ZMP Audience API or paste into segment builder",
     }
@@ -143,7 +143,7 @@ def _to_zmp_payload(seg_id: str, seg: SegmentDefinition, vertical: str) -> dict:
         "description": seg.description,
         "vertical": vertical,
         "logic": seg.logic,
-        "rules": [r.dict() for r in seg.rules],
+        "rules": [r.model_dump() for r in seg.rules],
         "status": "draft",
         "source": "zeta-sandbox-foundry",
     }
