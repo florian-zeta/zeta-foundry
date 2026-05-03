@@ -1,3 +1,5 @@
+import logging
+logging.basicConfig(level=logging.INFO)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import profiles, segments, html_builder, status, images, campaign, load_audience, resource_schema, build_resources, build_events

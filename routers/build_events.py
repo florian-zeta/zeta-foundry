@@ -194,6 +194,10 @@ async def build_events(req: BuildEventsRequest):
     errors = []
     event_counts: dict = {}
 
+import logging
+logger = logging.getLogger(__name__)
+logger.info(f"build_events called: {len(req.uids)} uids, {len(req.catalog)} catalog items, rich_event={req.rich_event_name}")
+
     async with httpx.AsyncClient() as client:
         tasks = [_post_event(client, url, auth, p) for p in payloads]
         results = await asyncio.gather(*tasks)
