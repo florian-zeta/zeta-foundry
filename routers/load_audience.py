@@ -91,6 +91,7 @@ class LoadAudienceResponse(BaseModel):
     succeeded: int
     failed: int
     errors: list[str]
+    loaded_uids: list[str]
 
 
 def _random_date(rng: random.Random, days_ago_min: int, days_ago_max: int) -> str:
@@ -394,6 +395,7 @@ async def load_audience(req: LoadAudienceRequest):
     succeeded = 0
     failed = 0
     errors = []
+    loaded_uids = []
 
     async with httpx.AsyncClient() as client:
         for i in range(0, len(req.profiles), req.batch_size):
@@ -403,9 +405,11 @@ async def load_audience(req: LoadAudienceRequest):
                 for profile in batch
             ]
             results = await asyncio.gather(*tasks)
-            for success, error in results:
+            for (success, error), profile in zip(results, batch):
                 if success:
                     succeeded += 1
+                    base_uid = profile.get("user_id", "unknown")
+                    loaded_uids.append(f"foundry_{base_uid}_{run_ts}")
                 else:
                     failed += 1
                     if error:
@@ -418,5 +422,6 @@ async def load_audience(req: LoadAudienceRequest):
         total=len(req.profiles),
         succeeded=succeeded,
         failed=failed,
-        errors=errors[:10]
+        errors=errors[:10],
+        loaded_uids=loaded_uids
     )
