@@ -13,20 +13,26 @@ DEVICES = ["PC", "Mobile", "Tablet"]
 OS_OPTIONS = ["Mac OS X", "Windows", "iOS", "Android"]
 TIMEZONES = ["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"]
 
-STORE_LOCATIONS = [
-    {"city": "Nashville", "state": "TN", "name": "BWW Nashville", "lat": 36.0662, "lng": -86.9639, "zip": "37221"},
-    {"city": "Austin", "state": "TX", "name": "BWW Austin", "lat": 30.2672, "lng": -97.7431, "zip": "78701"},
-    {"city": "Dallas", "state": "TX", "name": "BWW Dallas", "lat": 32.7767, "lng": -96.7970, "zip": "75201"},
-    {"city": "Houston", "state": "TX", "name": "BWW Houston", "lat": 29.7604, "lng": -95.3698, "zip": "77002"},
-    {"city": "Orlando", "state": "FL", "name": "BWW Orlando", "lat": 28.5383, "lng": -81.3792, "zip": "32801"},
-    {"city": "Miami", "state": "FL", "name": "BWW Miami", "lat": 25.7617, "lng": -80.1918, "zip": "33101"},
-    {"city": "Columbus", "state": "OH", "name": "BWW Columbus", "lat": 39.9612, "lng": -82.9988, "zip": "43215"},
-    {"city": "Washington", "state": "DC", "name": "BWW DC", "lat": 38.9072, "lng": -77.0369, "zip": "20001"},
-    {"city": "Los Angeles", "state": "CA", "name": "BWW LA", "lat": 34.0522, "lng": -118.2437, "zip": "90001"},
-    {"city": "Chicago", "state": "IL", "name": "BWW Chicago", "lat": 41.8781, "lng": -87.6298, "zip": "60601"},
+# City coordinates used purely for realistic lat/lng and session geo signals
+# Not store locations — works for any vertical
+CITY_COORDS = [
+    {"city": "Nashville", "state": "TN", "lat": 36.0662, "lng": -86.9639, "zip": "37221"},
+    {"city": "Austin", "state": "TX", "lat": 30.2672, "lng": -97.7431, "zip": "78701"},
+    {"city": "Dallas", "state": "TX", "lat": 32.7767, "lng": -96.7970, "zip": "75201"},
+    {"city": "Houston", "state": "TX", "lat": 29.7604, "lng": -95.3698, "zip": "77002"},
+    {"city": "Orlando", "state": "FL", "lat": 28.5383, "lng": -81.3792, "zip": "32801"},
+    {"city": "Miami", "state": "FL", "lat": 25.7617, "lng": -80.1918, "zip": "33101"},
+    {"city": "Columbus", "state": "OH", "lat": 39.9612, "lng": -82.9988, "zip": "43215"},
+    {"city": "Washington", "state": "DC", "lat": 38.9072, "lng": -77.0369, "zip": "20001"},
+    {"city": "Los Angeles", "state": "CA", "lat": 34.0522, "lng": -118.2437, "zip": "90001"},
+    {"city": "Chicago", "state": "IL", "lat": 41.8781, "lng": -87.6298, "zip": "60601"},
+    {"city": "Atlanta", "state": "GA", "lat": 33.7490, "lng": -84.3880, "zip": "30301"},
+    {"city": "Phoenix", "state": "AZ", "lat": 33.4484, "lng": -112.0740, "zip": "85001"},
+    {"city": "Indianapolis", "state": "IN", "lat": 39.7684, "lng": -86.1581, "zip": "46201"},
+    {"city": "New York", "state": "NY", "lat": 40.7128, "lng": -74.0060, "zip": "10001"},
+    {"city": "Seattle", "state": "WA", "lat": 47.6062, "lng": -122.3321, "zip": "98101"},
 ]
 
-# Vertical-specific branch/location names
 BRANCH_NAMES = {
     "financial_services": [
         "Downtown Financial Center", "Westside Branch", "Eastside Branch",
@@ -42,8 +48,13 @@ BRANCH_NAMES = {
     ],
 }
 
-BWW_SAUCES = [
-    "Blazin'", "Mango Habanero", "Honey BBQ", "Medium",
+MENU_ITEMS = [
+    "Classic Wings", "Boneless Wings", "Loaded Nachos", "Buffalo Wrap",
+    "Chicken Tenders", "Cheese Curds", "Soft Pretzel", "Street Tacos"
+]
+
+SAUCES = [
+    "Blazin", "Mango Habanero", "Honey BBQ", "Medium",
     "Asian Zing", "Parmesan Garlic", "Buffalo", "Hot BBQ",
     "Lemon Pepper", "Desert Heat", "Thai Curry", "Wild"
 ]
@@ -70,7 +81,7 @@ class LoadAudienceRequest(BaseModel):
     site_id: str = Field(..., example="client-services-sandbox")
     api_key: str = Field(..., example="your-32-char-api-key-here")
     batch_size: int = Field(25, ge=1, le=50)
-    vertical: Optional[str] = Field(None, description="Vertical for rich object generation: retail, financial_services, healthcare, hr_software")
+    vertical: Optional[str] = Field(None, description="Vertical: retail, financial_services, healthcare, hr_software")
     brand_name: Optional[str] = Field(None, description="Brand name for contextual enrichment")
 
 
@@ -82,33 +93,34 @@ class LoadAudienceResponse(BaseModel):
     errors: list[str]
 
 
-def _random_date(rng, days_ago_min: int, days_ago_max: int) -> str:
+def _random_date(rng: random.Random, days_ago_min: int, days_ago_max: int) -> str:
     days = rng.randint(days_ago_min, days_ago_max)
     dt = datetime.now(timezone.utc) - timedelta(days=days)
     return dt.isoformat()
 
 
 def _retail_enrichment(profile: dict, rng: random.Random, brand_name: str) -> dict:
-    """Blazin' Rewards style loyalty + order history for retail/restaurant brands."""
     points = rng.randint(0, 4800)
     visits = rng.randint(1, 48)
     ytd_spend = round(rng.uniform(12, 380), 2)
-    blazin_status = ytd_spend >= 250
+    elite = ytd_spend >= 250
     days_since_visit = rng.randint(30, 365)
-    sauce = rng.choice(BWW_SAUCES)
+    item = rng.choice(MENU_ITEMS)
+    sauce = rng.choice(SAUCES)
     order_type = rng.choice(["dine_in", "takeout", "delivery"])
 
     loyalty = {
-        "program_name": "Blazin' Rewards",
-        "member_id": f"BR{profile.get('user_id','').replace('user','').zfill(8)}",
+        "program_name": f"{brand_name} Rewards" if brand_name else "Loyalty Rewards",
+        "member_id": f"LY{rng.randint(10000000, 99999999)}",
         "points_balance": points,
         "points_expiry_days": rng.randint(30, 365),
-        "status_tier": "Blazin' Status" if blazin_status else "Standard",
-        "blazin_status": blazin_status,
+        "status_tier": "Elite" if elite else "Standard",
+        "elite_status": elite,
         "ytd_spend": ytd_spend,
         "total_visits": visits,
         "days_since_last_visit": days_since_visit,
         "lapsed": days_since_visit > 90,
+        "favorite_item": item,
         "favorite_sauce": sauce,
         "preferred_order_type": order_type,
         "app_installed": rng.choice([True, False]),
@@ -120,31 +132,24 @@ def _retail_enrichment(profile: dict, rng: random.Random, brand_name: str) -> di
         "order_type": order_type,
         "order_total": round(rng.uniform(12, 65), 2),
         "items_count": rng.randint(1, 4),
-        "favorite_item": f"{sauce} Wings",
+        "item": item,
         "days_ago": days_since_visit,
-        "channel": order_type,
     }
 
-    return {"blazin_rewards": loyalty, "last_order": last_order}
+    return {"loyalty": loyalty, "last_order": last_order}
 
 
 def _financial_enrichment(profile: dict, rng: random.Random, brand_name: str) -> dict:
-    """Account summary and product holdings for financial services brands."""
     products = rng.sample(BANK_PRODUCTS, rng.randint(1, 3))
-    tenure_years = rng.randint(1, 15)
     balance = round(rng.uniform(500, 85000), 2)
-    credit_score_band = rng.choice(["excellent", "good", "fair", "poor"])
     days_since_login = rng.randint(1, 90)
 
     account_summary = {
-        "customer_since_years": tenure_years,
+        "customer_since_years": rng.randint(1, 15),
         "products_held": products,
         "primary_product": products[0],
-        "estimated_balance_band": (
-            "high" if balance > 25000 else
-            "medium" if balance > 5000 else "low"
-        ),
-        "credit_score_band": credit_score_band,
+        "estimated_balance_band": "high" if balance > 25000 else "medium" if balance > 5000 else "low",
+        "credit_score_band": rng.choice(["excellent", "good", "fair", "poor"]),
         "days_since_last_login": days_since_login,
         "digital_active": days_since_login < 30,
         "mobile_app_user": rng.choice([True, False]),
@@ -154,9 +159,9 @@ def _financial_enrichment(profile: dict, rng: random.Random, brand_name: str) ->
         "preferred_channel": rng.choice(["mobile", "online", "branch", "phone"]),
     }
 
-    branch = rng.choice(BRANCH_NAMES["financial_services"])
+    branch_name = rng.choice(BRANCH_NAMES["financial_services"])
     preferred_branch = {
-        "name": f"{brand_name} {branch}" if brand_name else branch,
+        "name": f"{brand_name} {branch_name}" if brand_name else branch_name,
         "city": profile.get("city", ""),
         "state": profile.get("state", ""),
     }
@@ -165,13 +170,11 @@ def _financial_enrichment(profile: dict, rng: random.Random, brand_name: str) ->
 
 
 def _healthcare_enrichment(profile: dict, rng: random.Random, brand_name: str) -> dict:
-    """Patient engagement and care profile for healthcare brands."""
-    care_type = rng.choice(HEALTH_CONDITIONS)
     days_since_visit = rng.randint(14, 400)
     next_appt_days = rng.randint(-30, 90)
 
     patient_profile = {
-        "care_type": care_type,
+        "care_type": rng.choice(HEALTH_CONDITIONS),
         "days_since_last_visit": days_since_visit,
         "lapsed": days_since_visit > 180,
         "next_appointment_days": next_appt_days if next_appt_days > 0 else None,
@@ -188,17 +191,13 @@ def _healthcare_enrichment(profile: dict, rng: random.Random, brand_name: str) -
 
 
 def _hr_software_enrichment(profile: dict, rng: random.Random, brand_name: str) -> dict:
-    """Company profile and buying signals for HR software/B2B brands."""
-    company_sizes = ["50-200", "200-500", "500-2000", "2000+"]
-    size = rng.choice(company_sizes)
     title = rng.choice(HR_TITLES)
-    days_since_demo = rng.randint(7, 180)
     score = rng.randint(20, 95)
 
     company_profile = {
         "job_title": title,
         "department": "Human Resources",
-        "company_size": size,
+        "company_size": rng.choice(["50-200", "200-500", "500-2000", "2000+"]),
         "industry_segment": rng.choice(["technology", "healthcare", "retail", "manufacturing", "finance"]),
         "current_system": rng.choice(["Workday", "ADP", "BambooHR", "Namely", "None", "Custom"]),
         "pain_point": rng.choice([
@@ -207,11 +206,8 @@ def _hr_software_enrichment(profile: dict, rng: random.Random, brand_name: str) 
             "payroll_integration", "analytics"
         ]),
         "engagement_score": score,
-        "lead_stage": (
-            "hot" if score > 75 else
-            "warm" if score > 50 else "cold"
-        ),
-        "days_since_last_touchpoint": days_since_demo,
+        "lead_stage": "hot" if score > 75 else "warm" if score > 50 else "cold",
+        "days_since_last_touchpoint": rng.randint(7, 180),
         "demo_requested": score > 65,
         "content_downloads": rng.randint(0, 5),
         "webinar_attended": rng.choice([True, False]),
@@ -224,12 +220,12 @@ def _hr_software_enrichment(profile: dict, rng: random.Random, brand_name: str) 
 def _profile_to_subscriber(
     profile: dict,
     vertical: Optional[str] = None,
-    brand_name: Optional[str] = None
+    brand_name: Optional[str] = None,
+    run_ts: Optional[str] = None
 ) -> dict:
     now = datetime.now(timezone.utc).isoformat()
     rng = random.Random(profile.get("user_id", "seed"))
 
-    # Extract contacts
     email = None
     phone = None
     sub_status = "active"
@@ -240,83 +236,70 @@ def _profile_to_subscriber(
         elif contact.get("contact_type") == "phone":
             phone = contact.get("contact_value")
 
-    # Pick nearest store location
+    # Pick city coords matching profile state for realistic geo signals
     state = profile.get("state", "TX")
-    matching = [l for l in STORE_LOCATIONS if l["state"] == state]
-    store = rng.choice(matching if matching else STORE_LOCATIONS)
+    matching = [c for c in CITY_COORDS if c["state"] == state]
+    geo = rng.choice(matching if matching else CITY_COORDS)
 
-    # Device/session signals
     browser = rng.choice(BROWSERS)
     device = rng.choice(DEVICES)
     os = rng.choice(OS_OPTIONS)
     tz = rng.choice(TIMEZONES)
 
-    # Dates
     signed_up = _random_date(rng, 180, 730)
     last_seen = _random_date(rng, 7, 90)
-    last_contact = _random_date(rng, 14, 60)
+    last_contact_date = _random_date(rng, 14, 60)
     last_opened = _random_date(rng, 14, 90)
 
+    # Unique user_id per run — timestamp suffix prevents upserts
+    base_uid = profile.get("user_id", "unknown")
+    unique_uid = f"foundry_{base_uid}_{run_ts}" if run_ts else f"foundry_{base_uid}"
+
     properties = {
-        # Core identity
         "first_name": profile.get("first_name", ""),
         "last_name": profile.get("last_name", ""),
         "name": f"{profile.get('first_name', '')} {profile.get('last_name', '')}".strip(),
         "gender": profile.get("gender", ""),
-
-        # Address
         "address_1": profile.get("address_1", ""),
         "city": profile.get("city", ""),
         "state": profile.get("state", ""),
         "zip": profile.get("zip", ""),
         "country": profile.get("country", "US"),
-        "latitude": store["lat"],
-        "longitude": store["lng"],
-
-        # Zeta geo fields
+        "latitude": geo["lat"],
+        "longitude": geo["lng"],
         "z_city": profile.get("city", ""),
         "z_state": profile.get("state", ""),
         "z_zip": profile.get("zip", ""),
         "z_country": profile.get("country", "US"),
-        "z_latitude": store["lat"],
-        "z_longitude": store["lng"],
-
-        # Session signals
+        "z_latitude": geo["lat"],
+        "z_longitude": geo["lng"],
         "ns_browser": browser,
         "ns_browser_version": f"{rng.randint(100, 146)}.0.0",
-        "ns_city": store["city"],
+        "ns_city": geo["city"],
         "ns_continent": "NA",
         "ns_country": "US",
         "ns_device_type": device,
-        "ns_latitude": store["lat"],
-        "ns_longitude": store["lng"],
+        "ns_latitude": geo["lat"],
+        "ns_longitude": geo["lng"],
         "ns_metro_code": rng.randint(500, 600),
         "ns_operating_system": os,
-        "ns_postal_code": store["zip"],
-        "ns_region": store["state"],
+        "ns_postal_code": geo["zip"],
+        "ns_region": geo["state"],
         "ns_timezone": tz,
-
-        # Subscription flags
         "has_active_email": "true" if email else "false",
         "has_active_phone": "true" if phone else "false",
         "has_active_push_device": rng.choice(["true", "false"]),
         "has_active_subscription": "true" if sub_status == "active" else "false",
-
-        # Identity
         "known_to_customer": True,
         "known_to_zeta": bool(profile.get("zync_id")),
-
-        # Dates
         "signed_up_at": signed_up,
         "created_at": signed_up,
         "created_source": "zeta-sandbox-foundry",
         "last_updated": now,
         "last_updated_source": "zeta-sandbox-foundry",
         "last_seen": last_seen,
-        "last_contact": last_contact,
+        "last_contact": last_contact_date,
         "last_opened": last_opened,
-
-        # Foundry base enrichment
         "lifecycle_stage": profile.get("lifecycle_stage", ""),
         "engagement_score": str(profile.get("engagement_score", 0)),
         "identity_tier": profile.get("identity_tier", "anonymous"),
@@ -335,17 +318,16 @@ def _profile_to_subscriber(
     elif v == "hr_software":
         properties.update(_hr_software_enrichment(profile, enrichment_rng, brand_name or ""))
 
-    # Remove empty strings and None
+    # Remove empty strings and None values
     properties = {k: v for k, v in properties.items() if v != "" and v is not None}
 
     subscriber: dict = {
         "subscriber": {
-            "user_id": profile.get("user_id", ""),
+            "user_id": unique_uid,
             "properties": properties
         }
     }
 
-    # Contacts
     contacts = []
     if email:
         contacts.append({
@@ -373,9 +355,10 @@ async def _post_single(
     auth: tuple,
     profile: dict,
     vertical: Optional[str],
-    brand_name: Optional[str]
+    brand_name: Optional[str],
+    run_ts: str
 ) -> tuple[bool, Optional[str]]:
-    payload = _profile_to_subscriber(profile, vertical, brand_name)
+    payload = _profile_to_subscriber(profile, vertical, brand_name, run_ts)
     try:
         response = await client.post(
             url, json=payload, auth=auth, timeout=15.0,
@@ -395,9 +378,9 @@ async def _post_single(
     summary="Load enhanced profiles directly into ZMP via REST API",
     description=(
         "Posts enhanced profiles to ZMP subscriber API in batches. "
-        "Generates vertical-specific rich objects: loyalty program data for retail, "
-        "account summaries for financial services, patient profiles for healthcare, "
-        "company profiles for HR software. API key is never stored."
+        "Generates vertical-specific rich objects per profile. "
+        "Each run creates unique new records via timestamp-suffixed IDs. "
+        "API key is never stored."
     )
 )
 async def load_audience(req: LoadAudienceRequest):
@@ -406,6 +389,7 @@ async def load_audience(req: LoadAudienceRequest):
 
     url = f"https://api.zetaglobal.net/ver2/{req.site_id}/subscribers"
     auth = ("api", req.api_key)
+    run_ts = str(int(datetime.now(timezone.utc).timestamp()))
 
     succeeded = 0
     failed = 0
@@ -415,7 +399,7 @@ async def load_audience(req: LoadAudienceRequest):
         for i in range(0, len(req.profiles), req.batch_size):
             batch = req.profiles[i:i + req.batch_size]
             tasks = [
-                _post_single(client, url, auth, profile, req.vertical, req.brand_name)
+                _post_single(client, url, auth, profile, req.vertical, req.brand_name, run_ts)
                 for profile in batch
             ]
             results = await asyncio.gather(*tasks)
