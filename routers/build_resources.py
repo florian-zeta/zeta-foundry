@@ -1,6 +1,5 @@
 import httpx
 import asyncio
-import random
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -28,6 +27,10 @@ class BuildResourcesRequest(BaseModel):
     product_names: Optional[list[str]] = Field(
         None,
         description="Product/service names from brand research"
+    )
+    location_names: Optional[list[str]] = Field(
+        None,
+        description="Location city names from brand research e.g. ['Nashville TN', 'Austin TX']"
     )
 
 
@@ -66,15 +69,27 @@ def _default_product_names(vertical: str) -> list[str]:
     return defaults.get(vertical, defaults["retail"])
 
 
+def _default_location_names() -> list[str]:
+    return [
+        "Downtown", "Westside", "Northgate", "South Plaza",
+        "East Village", "Midtown", "Airport", "University District", "Lakeside"
+    ]
+
+
 def _generate_items(
     brand_name: str,
     vertical: str,
     resource_type: str,
     count: int,
     product_names: Optional[list[str]],
+    location_names: Optional[list[str]],
     run_ts: str
 ) -> list[dict]:
-    names = (product_names or _default_product_names(vertical))[:count]
+    if resource_type == "location":
+        names = (location_names or _default_location_names())[:count]
+    else:
+        names = (product_names or _default_product_names(vertical))[:count]
+
     items = []
     for i, name in enumerate(names):
         idx = str(i + 1).zfill(3)
@@ -83,10 +98,10 @@ def _generate_items(
         items.append({
             "resource-id": resource_id,
             "resource-type": resource_type,
-            "title": name,
-            "description": f"{name} — {brand_name}",
-            "body": f"{name} from {brand_name}.",
-            "url": f"https://www.{brand_name.lower().replace(' ', '')}.com",
+            "title": f"{brand_name} — {name}" if resource_type == "location" else name,
+            "description": f"{brand_name} location in {name}" if resource_type == "location" else f"{name} — {brand_name}",
+            "body": f"Visit {brand_name} in {name}." if resource_type == "location" else f"{name} from {brand_name}.",
+            "url": f"https://www.{brand_name.lower().replace(' ', '')}.com/{'locations' if resource_type == 'location' else 'menu'}",
             "thumbnail": f"https://placehold.co/400x300/333333/ffffff?text={encoded}",
             "brand": brand_name,
         })
@@ -121,8 +136,9 @@ async def _put_resource(
     response_model=BuildResourcesResponse,
     summary="Generate and load resources into ZMP",
     description=(
-        "Generates resources with basic fields and PUTs them to ZMP. "
-        "Pass product_names from brand research for brand-accurate items. "
+        "Generates product and/or location resources with basic fields "
+        "and PUTs them directly to ZMP. Pass product_names and location_names "
+        "from agent brand research for accurate results. "
         "Minimum 9 items per type for recommendations engine."
     )
 )
@@ -135,7 +151,8 @@ async def build_resources(req: BuildResourcesRequest):
     for rtype in req.resource_types:
         all_items.extend(_generate_items(
             req.brand_name, req.vertical, rtype,
-            req.items_per_type, req.product_names, run_ts
+            req.items_per_type, req.product_names,
+            req.location_names, run_ts
         ))
 
     if not all_items:
