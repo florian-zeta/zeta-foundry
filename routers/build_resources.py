@@ -65,6 +65,11 @@ def _default_product_names(vertical: str) -> list[str]:
             "Performance Management", "Onboarding Suite", "Learning Management",
             "Analytics Dashboard", "Compliance Tools", "Mobile App Access"
         ],
+        "b2b": [
+            "Core Platform", "Analytics Dashboard", "Onboarding Suite",
+            "Compliance Tools", "Integration Layer", "Reporting Module",
+            "Admin Console", "Mobile App", "API Access"
+        ],
     }
     return defaults.get(vertical, defaults["retail"])
 

@@ -16,6 +16,7 @@ DEFAULT_LIGHT_EVENTS = {
     "financial_services": ["page_view", "product_view", "login"],
     "healthcare": ["page_view", "appointment_viewed", "portal_login"],
     "b2b": ["page_view", "pricing_viewed", "whitepaper_downloaded"],
+    "hr_software": ["page_view", "pricing_viewed", "whitepaper_downloaded"],
 }
 
 DEFAULT_RICH_EVENT = {
@@ -23,6 +24,7 @@ DEFAULT_RICH_EVENT = {
     "financial_services": ("product_inquiry", "products"),
     "healthcare": ("appointment_booked", "services"),
     "b2b": ("demo_requested", "products"),
+    "hr_software": ("demo_requested", "products"),
 }
 
 DEFAULT_CATALOG = {

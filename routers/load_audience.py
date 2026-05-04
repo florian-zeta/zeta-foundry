@@ -316,7 +316,7 @@ def _profile_to_subscriber(
         properties.update(_financial_enrichment(profile, enrichment_rng, brand_name or ""))
     elif v == "healthcare":
         properties.update(_healthcare_enrichment(profile, enrichment_rng, brand_name or ""))
-    elif v == "hr_software":
+    elif v in ("hr_software", "b2b"):
         properties.update(_hr_software_enrichment(profile, enrichment_rng, brand_name or ""))
 
     # Remove empty strings and None values
