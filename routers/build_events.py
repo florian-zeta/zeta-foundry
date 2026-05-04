@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Defaults used when agent doesn't pass explicit values
 DEFAULT_LIGHT_EVENTS = {
-    "retail": ["page_view", "view_menu", "loyalty_checkin"],
+    "retail": ["page_view", "product_view", "add_to_cart"],
     "financial_services": ["page_view", "product_view", "login"],
     "healthcare": ["page_view", "appointment_viewed", "portal_login"],
     "b2b": ["page_view", "pricing_viewed", "whitepaper_downloaded"],
