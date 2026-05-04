@@ -72,6 +72,10 @@ class BuildEventsRequest(BaseModel):
     rich_event_name: Optional[str] = Field(None)
     rich_items_key: Optional[str] = Field(None)
     catalog: Optional[list[CatalogItem]] = Field(None)
+    product_names: Optional[list[str]] = Field(
+        None,
+        description="Brand product names to use in event catalog"
+    )
     events_per_user: int = Field(2, ge=1, le=5)
 
 
@@ -228,6 +232,18 @@ async def build_events(req: BuildEventsRequest):
     rich_items_key = req.rich_items_key or default_key
 
     catalog = _build_catalog(v, req.brand_name, brand_url, req.catalog)
+
+    # Build catalog from product_names if provided
+    if req.product_names and not req.catalog:
+        req.catalog = [
+            CatalogItem(
+                name=name,
+                price=None,
+                image=f"https://placehold.co/400x300/333333/ffffff?text={name.replace(' ', '+')}",
+                url=req.brand_url or f"https://www.{req.brand_name.lower().replace(' ', '')}.com"
+            )
+            for name in req.product_names
+        ]
 
     logger.info(
         f"build_events: site={req.site_id} uids={len(req.uids)} "
