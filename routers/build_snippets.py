@@ -9,6 +9,11 @@ router = APIRouter(tags=["snippets"])
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_name(name: str) -> str:
+    """Sanitize snippet name — replace spaces and dashes with underscores, lowercase."""
+    return name.strip().lower().replace(" ", "_").replace("-", "_").replace("—", "_")
+
+
 class SnippetItem(BaseModel):
     name: str = Field(..., description="Snippet name — use underscores, no spaces or dashes")
     html: str = Field(..., description="Full HTML content for the snippet")
@@ -137,6 +142,8 @@ async def build_snippets(req: BuildSnippetsRequest):
     results = []
     async with httpx.AsyncClient() as client:
         for snippet in req.snippets:
+            # Sanitize name — no spaces or dashes allowed
+            snippet.name = _sanitize_name(snippet.name)
             # Check if exists
             existing = await _get_snippet_by_name(client, base_url, auth, snippet.name)
             if existing:
