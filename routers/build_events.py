@@ -231,9 +231,7 @@ async def build_events(req: BuildEventsRequest):
     rich_event_name = req.rich_event_name or default_rich
     rich_items_key = req.rich_items_key or default_key
 
-    catalog = _build_catalog(v, req.brand_name, brand_url, req.catalog)
-
-    # Build catalog from product_names if provided
+    # Build catalog from product_names if provided — do this BEFORE _build_catalog
     if req.product_names and not req.catalog:
         req.catalog = [
             CatalogItem(
@@ -244,6 +242,8 @@ async def build_events(req: BuildEventsRequest):
             )
             for name in req.product_names
         ]
+
+    catalog = _build_catalog(v, req.brand_name, brand_url, req.catalog)
 
     logger.info(
         f"build_events: site={req.site_id} uids={len(req.uids)} "
