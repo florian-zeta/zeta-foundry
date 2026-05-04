@@ -37,7 +37,7 @@ def _build_template_html(snippet_names: list[str]) -> str:
              '</head>', '<body style="margin:0;padding:0;">']
 
     for name in snippet_names:
-        lines.append(f"{{% snippet name: '{name}' %}}")
+        lines.append(f'{{% snippet "{name}" %}}')
 
     lines.extend(['</body>', '</html>'])
     return '\n'.join(lines)
